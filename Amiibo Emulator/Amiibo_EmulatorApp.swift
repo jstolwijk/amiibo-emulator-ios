@@ -10,10 +10,14 @@ import SwiftUI
 @main
 struct Amiibo_EmulatorApp: App {
     @StateObject private var bluetoothManager = ChameleonBluetoothManager()
+    @StateObject private var databaseViewModel = AmiiboDatabaseViewModel()
 
     var body: some Scene {
         WindowGroup {
-            ContentView(bluetoothManager: bluetoothManager)
+            ContentView(
+                bluetoothManager: bluetoothManager,
+                databaseViewModel: databaseViewModel
+            )
         }
     }
 }

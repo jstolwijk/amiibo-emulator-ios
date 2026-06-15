@@ -6,14 +6,27 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		D5C3A4A42FE09A0000C80F6D /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = D5C3A4A62FE09A0000C80F6D /* ZIPFoundation */; };
+		D5C3A49C2FE086EE00C80F6D /* AmiiboDumpValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C3A49B2FE086EE00C80F6D /* AmiiboDumpValidator.swift */; };
+		D5C3A49E2FE0899D00C80F6D /* AmiiboDatabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C3A49D2FE0899D00C80F6D /* AmiiboDatabaseService.swift */; };
+		D5C3A4A02FE08A3900C80F6D /* AmiiboArchiveExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C3A49F2FE08A3900C80F6D /* AmiiboArchiveExtractor.swift */; };
+		D5C3A4A22FE08A8900C80F6D /* AmiiboDatabaseViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C3A4A12FE08A8900C80F6D /* AmiiboDatabaseViewModel.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		D58EB9142FE070060009183E /* Amiibo Emulator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Amiibo Emulator.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D5C3A49B2FE086EE00C80F6D /* AmiiboDumpValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmiiboDumpValidator.swift; sourceTree = "<group>"; };
+		D5C3A49D2FE0899D00C80F6D /* AmiiboDatabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmiiboDatabaseService.swift; sourceTree = "<group>"; };
+		D5C3A49F2FE08A3900C80F6D /* AmiiboArchiveExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmiiboArchiveExtractor.swift; sourceTree = "<group>"; };
+		D5C3A4A12FE08A8900C80F6D /* AmiiboDatabaseViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmiiboDatabaseViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		D58EB9212FE070070009183E /* Exceptions for "Amiibo Emulator" folder in "Amiibo Emulator" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				IMPLEMENTATION_PLAN.md,
 				Info.plist,
 			);
 			target = D58EB9132FE070060009183E /* Amiibo Emulator */;
@@ -36,6 +49,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D5C3A4A42FE09A0000C80F6D /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -47,6 +61,10 @@
 			children = (
 				D58EB9162FE070060009183E /* Amiibo Emulator */,
 				D58EB9152FE070060009183E /* Products */,
+				D5C3A49B2FE086EE00C80F6D /* AmiiboDumpValidator.swift */,
+				D5C3A49D2FE0899D00C80F6D /* AmiiboDatabaseService.swift */,
+				D5C3A49F2FE08A3900C80F6D /* AmiiboArchiveExtractor.swift */,
+				D5C3A4A12FE08A8900C80F6D /* AmiiboDatabaseViewModel.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -78,6 +96,7 @@
 			);
 			name = "Amiibo Emulator";
 			packageProductDependencies = (
+				D5C3A4A62FE09A0000C80F6D /* ZIPFoundation */,
 			);
 			productName = "Amiibo Emulator";
 			productReference = D58EB9142FE070060009183E /* Amiibo Emulator.app */;
@@ -111,6 +130,9 @@
 			productRefGroup = D58EB9152FE070060009183E /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
+			packageReferences = (
+				D5C3A4A52FE09A0000C80F6D /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
+			);
 			targets = (
 				D58EB9132FE070060009183E /* Amiibo Emulator */,
 			);
@@ -132,6 +154,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D5C3A49C2FE086EE00C80F6D /* AmiiboDumpValidator.swift in Sources */,
+				D5C3A49E2FE0899D00C80F6D /* AmiiboDatabaseService.swift in Sources */,
+				D5C3A4A22FE08A8900C80F6D /* AmiiboDatabaseViewModel.swift in Sources */,
+				D5C3A4A02FE08A3900C80F6D /* AmiiboArchiveExtractor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -162,24 +188,21 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jessestolwijk.Amiibo-Emulator";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.5;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -207,24 +230,21 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jessestolwijk.Amiibo-Emulator";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.5;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -366,6 +386,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D5C3A4A52FE09A0000C80F6D /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.20;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D5C3A4A62FE09A0000C80F6D /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D5C3A4A52FE09A0000C80F6D /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D58EB90C2FE070060009183E /* Project object */;
 }
