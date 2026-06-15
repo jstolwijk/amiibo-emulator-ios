@@ -113,7 +113,7 @@ struct ContentView: View {
             if bluetoothManager.isLoadingSlots {
                 HStack {
                     ProgressView()
-                    Text("Reading slots...")
+                    Text(bluetoothManager.slotLoadingMessage)
                         .foregroundStyle(.secondary)
                 }
             }

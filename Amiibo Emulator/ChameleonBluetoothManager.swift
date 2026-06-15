@@ -30,6 +30,7 @@ final class ChameleonBluetoothManager: NSObject, ObservableObject {
     @Published private(set) var connectedDeviceName: String?
     @Published private(set) var isScanning = false
     @Published private(set) var isLoadingSlots = false
+    @Published private(set) var slotLoadingMessage = "Reading slots..."
     @Published var errorMessage: String?
 
     private static let uartServiceUUID = CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
@@ -42,6 +43,11 @@ final class ChameleonBluetoothManager: NSObject, ObservableObject {
     private var rxCharacteristic: CBCharacteristic?
     private var discoveredDevices: [UUID: ChameleonDevice] = [:]
     private var receiveBuffer = Data()
+    private var pendingSlotCommands: [UInt16] = []
+    private var currentCommand: UInt16?
+    private var currentCommandAttempts = 0
+    private var commandTimeout: Timer?
+    private var slotRefreshWarnings: [String] = []
 
     override init() {
         super.init()
@@ -93,11 +99,39 @@ final class ChameleonBluetoothManager: NSObject, ObservableObject {
 
         errorMessage = nil
         isLoadingSlots = true
-        send(command: 1018)
+        slotRefreshWarnings.removeAll()
+        pendingSlotCommands = [1018, 1019, 1023]
+        currentCommand = nil
+        currentCommandAttempts = 0
+        sendNextSlotCommand()
     }
 
-    private func send(command: UInt16, payload: Data = Data()) {
-        guard let connectedPeripheral, let rxCharacteristic else { return }
+    private func sendNextSlotCommand() {
+        commandTimeout?.invalidate()
+
+        guard !pendingSlotCommands.isEmpty else {
+            finishSlotRefresh()
+            return
+        }
+
+        let command = pendingSlotCommands[0]
+        currentCommand = command
+        currentCommandAttempts += 1
+        slotLoadingMessage = loadingMessage(for: command)
+
+        // A small gap keeps commands from overlapping the previous BLE write callback.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self, self.currentCommand == command else { return }
+            self.write(command: command)
+            self.startTimeout(for: command)
+        }
+    }
+
+    private func write(command: UInt16, payload: Data = Data()) {
+        guard let connectedPeripheral, let rxCharacteristic else {
+            finishSlotRefresh(error: "The Bluetooth connection is no longer ready.")
+            return
+        }
 
         let length = UInt16(payload.count)
         var packet = Data([
@@ -117,6 +151,83 @@ final class ChameleonBluetoothManager: NSObject, ObservableObject {
         connectedPeripheral.writeValue(packet, for: rxCharacteristic, type: .withResponse)
     }
 
+    private func startTimeout(for command: UInt16) {
+        commandTimeout?.invalidate()
+        commandTimeout = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: false) {
+            [weak self] _ in
+            self?.handleTimeout(for: command)
+        }
+    }
+
+    private func handleTimeout(for command: UInt16) {
+        guard currentCommand == command else { return }
+
+        if currentCommandAttempts < 3 {
+            sendNextSlotCommand()
+            return
+        }
+
+        slotRefreshWarnings.append(
+            "\(commandName(command)) did not respond after \(currentCommandAttempts) attempts."
+        )
+        completeCurrentCommand()
+    }
+
+    private func completeCurrentCommand() {
+        commandTimeout?.invalidate()
+        commandTimeout = nil
+
+        if !pendingSlotCommands.isEmpty {
+            pendingSlotCommands.removeFirst()
+        }
+
+        currentCommand = nil
+        currentCommandAttempts = 0
+        sendNextSlotCommand()
+    }
+
+    private func finishSlotRefresh(error: String? = nil) {
+        commandTimeout?.invalidate()
+        commandTimeout = nil
+        pendingSlotCommands.removeAll()
+        currentCommand = nil
+        currentCommandAttempts = 0
+        isLoadingSlots = false
+        slotLoadingMessage = "Reading slots..."
+
+        if let error {
+            errorMessage = error
+        } else if !slotRefreshWarnings.isEmpty {
+            errorMessage = slotRefreshWarnings.joined(separator: "\n")
+        }
+    }
+
+    private func loadingMessage(for command: UInt16) -> String {
+        switch command {
+        case 1018:
+            "Reading active slot..."
+        case 1019:
+            "Reading slot types..."
+        case 1023:
+            "Reading enabled slots..."
+        default:
+            "Reading slots..."
+        }
+    }
+
+    private func commandName(_ command: UInt16) -> String {
+        switch command {
+        case 1018:
+            "Active slot"
+        case 1019:
+            "Slot types"
+        case 1023:
+            "Enabled slots"
+        default:
+            "Command \(command)"
+        }
+    }
+
     private func lrc<C: Collection>(for bytes: C) -> UInt8 where C.Element == UInt8 {
         let sum = bytes.reduce(UInt8.zero) { $0 &+ $1 }
         return 0 &- sum
@@ -129,23 +240,29 @@ final class ChameleonBluetoothManager: NSObject, ObservableObject {
             guard receiveBuffer.count >= 10 else { return }
 
             guard receiveBuffer[0] == 0x11, receiveBuffer[1] == 0xEF else {
-                receiveBuffer.removeFirst()
+                receiveBuffer = Data(receiveBuffer.dropFirst())
                 continue
             }
 
             let payloadLength = Int(readUInt16(receiveBuffer, at: 6))
             guard payloadLength <= 512 else {
-                receiveBuffer.removeFirst()
+                receiveBuffer = Data(receiveBuffer.dropFirst())
                 continue
             }
 
             let frameLength = payloadLength + 10
             guard receiveBuffer.count >= frameLength else { return }
 
-            let frame = receiveBuffer.prefix(frameLength)
-            receiveBuffer.removeFirst(frameLength)
-            let packet = Data(frame)
-            guard isValid(packet) else { continue }
+            let packet = Data(receiveBuffer.prefix(frameLength))
+            receiveBuffer = Data(receiveBuffer.dropFirst(frameLength))
+            guard isValid(packet) else {
+                if let currentCommand {
+                    slotRefreshWarnings.append(
+                        "\(commandName(currentCommand)) returned an invalid checksum."
+                    )
+                }
+                continue
+            }
             handleFrame(packet)
         }
     }
@@ -166,51 +283,64 @@ final class ChameleonBluetoothManager: NSObject, ObservableObject {
         let payloadLength = Int(readUInt16(frame, at: 6))
         let payload = frame.subdata(in: 9..<(9 + payloadLength))
 
+        guard command == currentCommand else {
+            return
+        }
+
         guard status == Self.successStatus else {
-            isLoadingSlots = false
-            errorMessage = "Chameleon command \(command) failed with status \(status)."
+            slotRefreshWarnings.append(
+                "\(commandName(command)) failed with status \(status)."
+            )
+            completeCurrentCommand()
             return
         }
 
         switch command {
         case 1018:
-            activeSlot = payload.first.map(Int.init)
-            send(command: 1019)
+            if let activeSlot = payload.first, activeSlot < 8 {
+                self.activeSlot = Int(activeSlot)
+            } else {
+                slotRefreshWarnings.append("The active slot response was incomplete.")
+            }
         case 1019:
-            parseSlotTypes(payload)
-            send(command: 1023)
+            if !parseSlotTypes(payload) {
+                slotRefreshWarnings.append("The slot type response was incomplete.")
+            }
         case 1023:
-            parseEnabledSlots(payload)
-            isLoadingSlots = false
+            if !parseEnabledSlots(payload) {
+                slotRefreshWarnings.append("The enabled-slot response was incomplete.")
+            }
         default:
             break
         }
+
+        completeCurrentCommand()
     }
 
-    private func parseSlotTypes(_ payload: Data) {
-        guard payload.count >= 32 else {
-            errorMessage = "The device returned incomplete slot information."
-            return
-        }
+    @discardableResult
+    private func parseSlotTypes(_ payload: Data) -> Bool {
+        guard payload.count >= 32 else { return false }
 
         for index in slots.indices {
             let offset = index * 4
             slots[index].hfType = readUInt16(payload, at: offset)
             slots[index].lfType = readUInt16(payload, at: offset + 2)
         }
+
+        return true
     }
 
-    private func parseEnabledSlots(_ payload: Data) {
-        guard payload.count >= 16 else {
-            errorMessage = "The device returned incomplete enabled-slot information."
-            return
-        }
+    @discardableResult
+    private func parseEnabledSlots(_ payload: Data) -> Bool {
+        guard payload.count >= 16 else { return false }
 
         for index in slots.indices {
             let offset = index * 2
             slots[index].hfEnabled = payload[offset] != 0
             slots[index].lfEnabled = payload[offset + 1] != 0
         }
+
+        return true
     }
 
     private func readUInt16(_ data: Data, at offset: Int) -> UInt16 {
@@ -224,7 +354,8 @@ final class ChameleonBluetoothManager: NSObject, ObservableObject {
         receiveBuffer.removeAll()
         activeSlot = nil
         slots = (0..<8).map { ChameleonSlot(id: $0) }
-        isLoadingSlots = false
+        slotRefreshWarnings.removeAll()
+        finishSlotRefresh()
     }
 }
 
@@ -379,8 +510,7 @@ extension ChameleonBluetoothManager: CBPeripheralDelegate {
         error: Error?
     ) {
         if let error {
-            isLoadingSlots = false
-            errorMessage = "Bluetooth write failed: \(error.localizedDescription)"
+            finishSlotRefresh(error: "Bluetooth write failed: \(error.localizedDescription)")
         }
     }
 }
