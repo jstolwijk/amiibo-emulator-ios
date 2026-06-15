@@ -1,80 +1,178 @@
-//
-//  ContentView.swift
-//  Amiibo Emulator
-//
-//  Created by Jesse Stolwijk on 15/06/2026.
-//
-
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @ObservedObject var bluetoothManager: ChameleonBluetoothManager
 
     var body: some View {
-        NavigationViewWrapper {
+        NavigationStack {
             List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
+                connectionSection
+
+                if bluetoothManager.connectedDeviceName != nil {
+                    slotsSection
+                } else {
+                    devicesSection
                 }
-                .onDelete(perform: deleteItems)
             }
-#if os(macOS)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-#endif
+            .navigationTitle("Amiibo Emulator")
             .toolbar {
-#if os(iOS)
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
+                if bluetoothManager.connectedDeviceName != nil {
+                    ToolbarItem {
+                        Button {
+                            bluetoothManager.refreshSlots()
+                        } label: {
+                            Label("Refresh Slots", systemImage: "arrow.clockwise")
+                        }
+                        .disabled(bluetoothManager.isLoadingSlots)
+                    }
                 }
-#endif
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+            }
+            .alert(
+                "Bluetooth Error",
+                isPresented: Binding(
+                    get: { bluetoothManager.errorMessage != nil },
+                    set: { if !$0 { bluetoothManager.errorMessage = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) {
+                    bluetoothManager.errorMessage = nil
+                }
+            } message: {
+                Text(bluetoothManager.errorMessage ?? "")
+            }
+        }
+    }
+
+    private var connectionSection: some View {
+        Section("Connection") {
+            LabeledContent("Status", value: bluetoothManager.bluetoothState)
+
+            if let deviceName = bluetoothManager.connectedDeviceName {
+                LabeledContent("Device", value: deviceName)
+                Button("Disconnect", role: .destructive) {
+                    bluetoothManager.disconnect()
+                }
+            } else {
+                Button {
+                    if bluetoothManager.isScanning {
+                        bluetoothManager.stopScanning()
+                    } else {
+                        bluetoothManager.startScanning()
+                    }
+                } label: {
+                    Label(
+                        bluetoothManager.isScanning ? "Stop Scanning" : "Scan for Chameleon",
+                        systemImage: bluetoothManager.isScanning
+                            ? "stop.circle"
+                            : "antenna.radiowaves.left.and.right"
+                    )
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var devicesSection: some View {
+        if bluetoothManager.isScanning || !bluetoothManager.devices.isEmpty {
+            Section("Nearby Devices") {
+                if bluetoothManager.devices.isEmpty {
+                    HStack {
+                        ProgressView()
+                        Text("Searching...")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                ForEach(bluetoothManager.devices) { device in
+                    Button {
+                        bluetoothManager.connect(to: device)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(device.name)
+                                    .foregroundStyle(.primary)
+                                Text(device.id.uuidString)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Text("\(device.rssi) dBm")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+    private var slotsSection: some View {
+        Section {
+            if bluetoothManager.isLoadingSlots {
+                HStack {
+                    ProgressView()
+                    Text("Reading slots...")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            ForEach(bluetoothManager.slots) { slot in
+                slotRow(slot)
+            }
+        } header: {
+            Text("Slots")
+        } footer: {
+            let allocatedCount = bluetoothManager.slots.filter(\.isAllocated).count
+            Text("\(allocatedCount) of 8 slots allocated")
         }
     }
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+    private func slotRow(_ slot: ChameleonSlot) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: slot.isAllocated ? "creditcard.fill" : "creditcard")
+                .foregroundStyle(slot.isAllocated ? Color.accentColor : .secondary)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Slot \(slot.id + 1)")
+                        .font(.headline)
+
+                    if bluetoothManager.activeSlot == slot.id {
+                        Text("ACTIVE")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.accentColor, in: Capsule())
+                    }
+                }
+
+                if slot.isAllocated {
+                    slotTypeLabel(name: "HF", type: slot.hfType, enabled: slot.hfEnabled)
+                    slotTypeLabel(name: "LF", type: slot.lfType, enabled: slot.lfEnabled)
+                } else {
+                    Text("Empty")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
+        .padding(.vertical, 4)
     }
-}
 
-fileprivate struct NavigationViewWrapper<Content: View>: View {
-    let content: () -> Content
-
-    var body: some View {
-#if os(macOS)
-        NavigationSplitView {
-            content()
-        } detail: {
-            Text("Select an item")
+    @ViewBuilder
+    private func slotTypeLabel(name: String, type: UInt16, enabled: Bool) -> some View {
+        if type != 0 {
+            Text("\(name) 0x\(String(format: "%04X", type)) · \(enabled ? "Enabled" : "Disabled")")
+                .font(.subheadline)
+                .foregroundStyle(enabled ? .primary : .secondary)
         }
-#else
-        content()
-#endif
     }
 }
 
 #Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+    ContentView(bluetoothManager: ChameleonBluetoothManager())
 }
